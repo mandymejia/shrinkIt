@@ -1,6 +1,5 @@
-%% Perform shrinkage of subject-level observations towards the group mean
 function [shrink lambda] = shrinkIt(X1, X2, t)
-
+%
 % This function performs shrinkage towards the group mean of subject-level 
 % observations of any voxel-by-voxel similarity or distance matrix.  This 
 % can be used as a pre-processing step before performing clustering in 
@@ -12,7 +11,7 @@ function [shrink lambda] = shrinkIt(X1, X2, t)
 % shrinkage), and is determined by the relationship between within-subject 
 % (noise) variance and between-subject (signal) variance.  Both variance 
 % components and the shrinkage parameter are estimated from the data.
-
+%
 %Usage:
 %   [shrink lambda] = shrinkIt(X1, X2, t)
 %Inputs:
