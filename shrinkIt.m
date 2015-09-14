@@ -64,7 +64,7 @@ if isempty(X1_grp) || isempty(X2_grp) || isempty(Xodd_grp) || isempty(Xeven_grp)
 end
 
 dims = size(X1_grp); %Returns the dimensions m by n of the observation matrix
-if ~isequal(dims, size(X1_grp), size(Xodd_grp), size(Xeven_grp)))
+if ~isequal(dims, size(X1_grp), size(Xodd_grp), size(Xeven_grp))
     error('dimensions of all inputs do not match')
 end      
 
