@@ -1,12 +1,12 @@
 {\rtf1\ansi\ansicpg1252\cocoartf1187\cocoasubrtf400
 {\fonttbl\f0\fswiss\fcharset0 Helvetica;}
-{\colortbl;\red255\green255\blue255;\red26\green26\blue26;\red255\green255\blue255;}
+{\colortbl;\red255\green255\blue255;\red26\green26\blue26;}
 \margl1440\margr1440\vieww11800\viewh8400\viewkind0
 \deftab720
 \pard\pardeftab720
 
 \f0\fs24 \cf0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardeftab720\pardirnatural
 \cf0 \
 Obtained from: \
 \
@@ -18,37 +18,37 @@ Please cite:\
 \pard\pardeftab720\sa240
 \cf0 AF Mejia, MB Nebel, H Shou, CM Crainiceanu, JJ Pekar, S Mostofsky, B Caffo and MA Lindquist. Improving reliability of subject-level resting-state fMRI parcellation with shrinkage estimators. (in press)\
 \pard\pardeftab720\sl320
-\cf2 \cb3 H Shou, A Eloyan, MB Nebel, A Mejia, JJ Pekar, S Mostofsky, B Caffo, MA Lindquist and CM Crainiceanu (2014). Shrinkage prediction of seed-voxel brain connectivity using resting state fMRI. NeuroImage.\cf0 \cb1 \
-\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural
+\cf2 H Shou, A Eloyan, MB Nebel, A Mejia, JJ Pekar, S Mostofsky, B Caffo, MA Lindquist and CM Crainiceanu (2014). Shrinkage prediction of seed-voxel brain connectivity using resting state fMRI. NeuroImage.\cf0 \
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardeftab720\pardirnatural
 \cf0 \
 Code written by: \
 \
 Amanda Mejia, Department of Biostatistics, Johns Hopkins School of Public Health\
 Mary Beth Nebel, Laboratory for Neurodevelopmental Research and Imaging, Kennedy Krieger Institute\
 \pard\pardeftab720
-\cf2 \cb3 Makenzie Miller, \cf0 \cb1 Laboratory for Neurodevelopmental Research and Imaging, Kennedy Krieger Institute\
+\cf2 Makenzie Miller, \cf0 Laboratory for Neurodevelopmental Research and Imaging, Kennedy Krieger Institute\
 \
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
 \
 This code performs empirical Bayes shrinkage of subject-level connectivity matrices towards the group mean.  The degree of shrinkage ranges from 0 (no shrinkage) to 1 (complete shrinkage), and is set to the optimal level for each voxel-pair.  The optimal level is determined using the relationship between the within-subject (noise) variance and the between-subject (signal) variance, which are estimated from the data.\
 \
-\pard\pardeftab720
-\cf0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-\pard\pardeftab720
-\cf0 \
-shrinkIt.m - Main function.  Takes as input two independent observation matrices, X1 and X2, and a scalar t equal to the total scan time (in minutes) computed for each subject.  Returns a shrinkage estimate matrix X and the shrinkage parameter vector lambda.\
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+\
+Overview: \
+1. Apply split_ts.m to each subject's data to obtain several estimates of the parameters of interest for each subject.\
+2. Combine all subjects into group arrays with the last dimension = n (number of subjects).\
+3. Apply shrinkIt.m to group arrays to obtain shrinkage estimates of parameters of interest.\
+\
+shrinkIt.m - Main function 1.  Takes as input X1_grp, X2_grp, Xodd_grp and Xeven_grp, which are four arrays of equal dimension containing subject-level parameter estimates.  The last dimension of each array is n (the number of subjects).  The parameter(s) being estimated can be any quantities of interest.  For example, X( : , : , i ) could be the VxV correlation matrix or a Vx1 seed connectivity map for subject i.  For information on X1, X2, Xodd and Xeven, see description of split_ts.m.  Returns a shrinkage estimate matrix X_shrink and the shrinkage parameter vector lambda.\
+\
+split_ts.m - Main function 2.  Should be applied to each subject's data to create X1, X2, Xodd and Xeven.  X1 and X2 are computed from the first and second halves of each subject's time series, respectively, and Xodd and Xeven are computed from the odd and even blocks of each subject's time series, respectively.  Takes as input time series data matrix Y (time x variables), block length b and function name(s) fun.  Block length is the length of each "block" for block splitting of the time series (similar to block bootstrap).  Since time series data is autocorrelated, keeping the data in blocks reduces the effect on the correlation structure of the data.  If b=5, the odd time series will consist of the time points 1-5, 11-15, \'85, and the even time series will consist of the time points 6-10, 16-20, \'85 .  The final parameter, fun, is a string or cell array of strings corresponding to the function or functions to be applied to each time series to compute the parameter(s) of interest.  If multiple functions are to be applied to obtain the parameter(s), they should be listed in the correct order.   \
 \
 mat2UT - Helper function to transform a V-by-V matrix to a vector containing only the upper triangular elements of the matrix (not including the diagonal).\
 \
-\pard\pardeftab720
-\cf0 UT2mat - Helper function to transform a vector of upper diagonal elements to a V-by-V matrix with those elements on the upper and lower triangles.  Also takes a scalar parameter d, which is used to populate the diagonals of the matrix and whose default value is 1.\
+UT2mat - Helper function to transform a vector of upper diagonal elements to a V-by-V matrix with those elements on the upper and lower triangles.  Also takes a scalar parameter d, which is used to populate the diagonals of the matrix and whose default value is 1.\
 \
-Example.m - Example code.  Randomly generates connectivity matrices for 20 subjects, vectorizes them using mat2UT, performs shrinkage, and plots a histogram of the shrinkage parameter values.\
-\pard\pardeftab720
-\cf0 \
-\pard\pardeftab720
-\cf0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
-\pard\pardeftab720
-\cf0 \
+Example.m - Example code.  Reads in resting-state fMRI data for n subjects.  Each subject's data is TxV.  For each subject, split_ts.m is used to obtain X1, X2, Xodd and Xeven.  The X's are each px1, where p=V(V-1)/2 is the number of elements in the upper triangle of the VxV correlation matrix.  mat2UT.m is used within split_ts.m to convert the correlation matrices to the vector of upper triangular elements.  All subjects are combined to form group arrays with the last dimension = n.  These are input into shrinkIt.m, which is used to shrink X (X is the array of parameter estimates using the entire time series, X = (X1 + X2)/2).  Clustering is performed on the shrinkage estimates using kmedioids.m, which allows the user to provide a distance matrix.\
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\
+\
 \
 }
