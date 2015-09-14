@@ -76,6 +76,8 @@ if size(X1_grp, ndims(X1_grp)) == 1 || max(dims) == 1
     error('last dimension of inputs must equal number of subjects > 1')
 end
 
+%% SET-UP
+
 %compute array of estimates for each subject
 X_grp = (X1_grp + X2_grp)/2; %subject-level estimates
 

@@ -60,11 +60,11 @@ if(nargin ~= 4)
 end
 
 if isempty(X1_grp) || isempty(X2_grp) || isempty(Xodd_grp) || isempty(Xeven_grp)
-    error('one or more arguments is empty')
+    error('one or more inputs is empty')
 end
 
 dims = size(X1_grp); %Returns the dimensions m by n of the observation matrix
-if ~isequal(dims, size(X1_grp), size(Xodd_grp), size(Xeven_grp)))
+if ~isequal(dims, size(X1_grp), size(Xodd_grp), size(Xeven_grp))
     error('dimensions of all inputs do not match')
 end      
 
@@ -72,9 +72,11 @@ if ~isnumeric(X1_grp) || ~isnumeric(X2_grp) || ~isnumeric(Xodd_grp) || ~isnumeri
     error('all inputs must be numeric arrays')
 end
 
-if size(X1_grp, ndims(X1_grp)) == 1
+if size(X1_grp, ndims(X1_grp)) == 1 || max(dims) == 1
     error('last dimension of inputs must equal number of subjects > 1')
 end
+
+%% SET-UP
 
 %compute array of estimates for each subject
 X_grp = (X1_grp + X2_grp)/2; %subject-level estimates

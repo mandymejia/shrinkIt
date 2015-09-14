@@ -10,9 +10,8 @@ function [X1 X2 Xodd Xeven] = split_ts(Y, b, fun)
 %Usage:
 %   [X1 X2 Xeven Xodd] = split_ts(Y, b, fun)
 %Inputs:
-%   Y -  An t-by-p array, where t is the number of time points in the time
-%   series and p is the number of observed variables.  If data is stored as
-%   a table, use table2array() to convert to an array.
+%   Y -  An t-by-p array or table, where t is the number of time points in the time
+%   series and p is the number of observed variables.  
 %
 %   b -  A scalar indicating the desired block size for Yeven and Yodd.
 %   For example, if b=3, Yodd will consist of the time points
@@ -31,6 +30,40 @@ function [X1 X2 Xodd Xeven] = split_ts(Y, b, fun)
 %   Yodd = (todd-by-p) matrix, consisting of the odd blocks of time points
 %   Yeven = (teven-by-p) matrix, consisting of the even blocks of time points
 
+%% Perform Checks
+
+if(nargin ~= 3)
+    error('Must specify three inputs')
+end
+
+if isempty(Y) || isempty(b) || isempty(fun)
+    error('one or more inputs is empty')
+end
+
+if ~isnumeric(b) || max(size(b)) > 1 || b - round(b) ~= 0
+    error('b must be an integer')
+end      
+
+if ~ischar(fun) && ~iscellstr(fun)
+    error('fun must be a string or cell array of strings')
+end
+
+%check that function names exist
+if ischar(fun)
+    fun_exist = exist(fun);
+elseif iscellstr(fun)
+    fun_exist = min(cellfun(@exist, fun));
+end
+if ~fun_exist
+    error('one or more of the function names in "fun" input does not exist')
+end
+
+%% CREATE SUB-SERIES
+
+if istable(Yi) 
+    Yi = table2array(Yi);
+end
+
 t = size(Y, 1);
 
 %create Y1 and Y2
@@ -45,6 +78,8 @@ inds_odd = inds_odd(1,1:t); %indicator vector for odd blocks
 inds_even = 1 - inds_odd;   %indicator vector for even blocks
 Yodd = Y(find(inds_odd),:); %find() converts binary to indices
 Yeven = Y(find(inds_even),:);
+
+%% APPLY FUNCTION(S) TO SUB-SERIES
 
 %apply first (or only) function to initialize X1, X2, Xodd, Xeven
 fun = cellstr(fun); %convert to cell array of strings
@@ -69,7 +104,5 @@ if(num_fun>1)
     end
     
 end
-
-
 
 
