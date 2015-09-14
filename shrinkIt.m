@@ -55,24 +55,25 @@ function [X_shrink lambda] = shrinkIt(X1_grp, X2_grp, Xodd_grp, Xeven_grp)
 
 %% Perform Checks
 
-%Check that:
-% - X1 and X2 are provided, are numeric, and have the same dimensions
-% - t is provided and is a numeric scalar
-if(nargin ~= 3)
-    error('Must specify three inputs: the 2 observations from each subject and the total scan time (in minutes) collected for each subject')
+if(nargin ~= 4)
+    error('Must specify four inputs')
 end
-dims = size(X1); %Returns the dimensions m by n of the observation matrix
-if isempty(X1) || isempty(X2)
-    error('Both X1 and X2 should be provided in order to compute noise variance')
+
+if isempty(X1_grp) || isempty(X2_grp) || isempty(Xodd_grp) || isempty(Xeven_grp)
+    error('one or more inputs is empty')
 end
-if ~isequal(dims, size(X2))
-    error('Dimensions of X1 and X2 do not match')
+
+dims = size(X1_grp); %Returns the dimensions m by n of the observation matrix
+if ~isequal(dims, size(X1_grp), size(Xodd_grp), size(Xeven_grp)))
+    error('dimensions of all inputs do not match')
 end      
-if ~isnumeric(X1) || ~isnumeric(X2)
-    error('X1 and X2 must be numeric')
+
+if ~isnumeric(X1_grp) || ~isnumeric(X2_grp) || ~isnumeric(Xodd_grp) || ~isnumeric(Xeven_grp)
+    error('all inputs must be numeric arrays')
 end
-if length(t)~=1 || ~isnumeric(t)
-    error('t must be a numeric scalar')
+
+if size(X1_grp, ndims(X1_grp)) == 1 || max(dims) == 1
+    error('last dimension of inputs must equal number of subjects > 1')
 end
 
 %compute array of estimates for each subject
