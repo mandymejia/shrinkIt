@@ -78,7 +78,7 @@ end
 %compute array of estimates for each subject
 X_grp = (X1_grp + X2_grp)/2; %subject-level estimates
 
-%last dimension of arrays (indexes subjects)
+%last dimension of arrays (indexes subjects
 nd = ndims(X_grp);
 
 %number of subjects
@@ -112,14 +112,14 @@ lambda(lambda < 0) = 0;
 
 %% PERFORM SHRINKAGE
 
-%compute mean across subjects
-X_bar = mean(X_grp, nd);
+lambda = repmat(lambda, 1, n);
+Xbar = mean(X_grp, ndims(X_grp));
 
-%make X_bar and lambda of same size as input arrays
-X_bar = repmat(X_bar, 1, n);
-lambda2 = repmat(lambda, 1, n);
 
-%compute shrinkage estimates
-X_shrink = (lambda2.*(X_bar))+((1-lambda2).*X_grp); 
+groupmean = mean(X,2);  %vector of length m
+groupmean = repmat(groupmean, 1, n); %matrix
+X_shrink = (lambda.*(groupmean))+((1-lambda).*X); %mxn matrix
 
+%% Make lambda into a vector again
+lambda = lambda(:,1);
 
