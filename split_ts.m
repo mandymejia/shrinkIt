@@ -60,8 +60,8 @@ end
 
 %% CREATE SUB-SERIES
 
-if istable(Yi) 
-    Yi = table2array(Yi);
+if istable(Y) 
+    Y = table2array(Y);
 end
 
 t = size(Y, 1);
