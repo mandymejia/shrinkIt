@@ -16,10 +16,9 @@
 %variance.  The estimated noise variance depends on the total scan time per
 %subject. 
 
-%% ADD PATH TO SHRINKIT TOOLBOX AND KMEDIOIDS TOOLBOX
+%% ADD PATH TO SHRINKIT TOOLBOX 
 
 addpath '~/matlab_toolboxes/shrinkIt/'
-addpath '~/matlab_toolboxes/kmedioids/'
 
 
 %% POINT TO DATA AND GET FILE NAMES
@@ -36,8 +35,8 @@ n = numel(fnames); %number of subjects
 %single function example: compute VxV correlation matrix
 fun_single = 'corrcoef';
 
-%multiple function example: compute upper triangle of VxV correlation matrix
-fun_multiple = {'corrcoef', 'mat2UT'};
+%multiple function example: compute upper triangle of VxV correlation matrix, then Fisher-transform
+fun_multiple = {'corrcoef', 'mat2UT', 'fish'};
 
 %length of blocks in even/odd splitting
 b = 10; 
@@ -58,26 +57,30 @@ for ii = 1:n
     
     %data stored as text files
     Yi = readtable(fnamei, 'Delimiter',' ','ReadVariableNames', false);
-        
+    Yi1 = Yi(1:1200,:); %visit 1, LR acquisition
+    Yi2 = Yi(2401:3600,:); %visit 2, LR acquisition
     
     % SPLIT TIME SERIES DATA USING SPLIT_TS()
     % COMPUTE UT OF CORRELATION MATRIX
     
     %single function example: 
     %split data and compute VxV correlation matrix for each split
-    [X1i X2i Xoddi Xeveni] = split_ts(Yi, b, fun_single);
+    [X1i X2i Xoddi Xeveni] = split_ts(Yi1, b, fun_single);
     
     %multiple function example:
     %split data and compute upper triangle of VxV correlation matrix for each split
-    [X1i X2i Xoddi Xeveni] = split_ts(Yi, b, fun_multiple);
-    
-    
+    [X1i X2i Xoddi Xeveni] = split_ts(Yi1, b, fun_multiple);
+
+
+    % COMPUTE ESTIMATE FROM SECOND VISIT FOR RELIABILITY ANALYSIS
+    X_visit2i = mat2UT(corrcoef(table2array(Yi2)));
+
     
     % COMBINE SUBJECTS
     
     if(ii==1) 
         %initialize group arrays for each split
-        [X1 X2 Xodd Xeven] = deal(zeros([size(X1i), n]));
+        [X1 X2 Xodd Xeven X_visit2] = deal(zeros([size(X1i), n]));
     end
 
     %add current subject to group arrays:
@@ -89,6 +92,7 @@ for ii = 1:n
     X2(index{:}) = X2i;
     Xodd(index{:}) = Xoddi;
     Xeven(index{:}) = Xeveni;
+    X_visit2(index{:}) = X_visit2i;
     
 end
 
@@ -97,6 +101,7 @@ X1 = squeeze(X1);
 X2 = squeeze(X2);
 Xodd = squeeze(Xodd);
 Xeven = squeeze(Xeven);
+X_visit2 = squeeze(X_visit2);
 
 
 
@@ -107,35 +112,95 @@ Xeven = squeeze(Xeven);
 %Assume each subject has 10 minutes of scan time total
 %(two 5-minute scans, or one 10-minute scan split in two)
 
-[X_shrink lambda] = shrinkIt(X1, X2, Xodd, Xeven);
-
-size(X_shrink)
-size(lambda)
-
-%Look at distribution of shrinkage parameter values (lambda):
-%
-%lambda = var(noise)/[var(noise)+var(signal)]
-%
-
-hist(lambda)
+[X_shrink lambda varU varW varX] = shrinkIt(X1, X2, Xodd, Xeven);
+X_shrink = unfish(X_shrink); %inverse Fisher-transform to obtain Pearson correlations
 
 
-%% PERFORM CLUSTERING OF VOXELS OF EACH SUBJECT USING SHRINKAGE ESTIMATES OF CORRELATION MATRICES
+% VISUALIZE VARIANCE COMPONENTS & DEGREE OF SHRINKAGE
 
-% Transform correlation to distance, reshape to V-by-V matrix with 0s on
-% diagonal, and perform clustering.  
+varWTHN = varU + varW;
+varBTWN = varX;
+maxv = max(max(varWTHN(:)),max(varBTWN(:)))*.5;
 
-% kmedioids function allows user to input a custom distance matrix
-% http://www.mathworks.com/matlabcentral/fileexchange/28860-kmedioids
+figure
+h = subplot(1,3,1);
+image(UT2mat(varWTHN, 0),'CDataMapping','scaled')
+colorbar; caxis([0,maxv]); axis off;
+title('Within-Subject Variance')
+h = subplot(1,3,2);
+image(UT2mat(varBTWN, 0),'CDataMapping','scaled')
+colorbar; caxis([0,maxv]); axis off;
+title('Between-Subject Variance')
+h = subplot(1,3,3);
+image(UT2mat(lambda, 0),'CDataMapping','scaled')
+colorbar; caxis([0,1]); axis off;
+title('Degree of Shrinkage')
 
-% cluster labels may differ across subjects
 
-V = size(Yi,2);
-clusters = zeros(V, n);
 
-for ii = 1:n
-    dist = (1-X_shrink(:,ii)/2) - 0.5;
-    dist_mat = UT2mat(dist, 0);
-    clusters(:,ii) = kmedioids(dist_mat, 4); 
-end
+
+% VISUALIZE RSFC ESTIMATES & RELIABILITY
+
+X1 = unfish(X1);
+X2 = unfish(X2);
+X_avg = (X1 + X2)./2;
+
+figure
+h = subplot(3,3,1);
+image(UT2mat(X_avg(:,1), 1),'CDataMapping','scaled')
+colormap parula; colorbar; caxis([-.5,.5]); axis off;
+title('Subject 1 Raw')
+h = subplot(3,3,2);
+image(UT2mat(X_avg(:,2), 1),'CDataMapping','scaled')
+colormap parula; colorbar; caxis([-.5,.5]); axis off;
+title('Subject 2 Raw')
+h = subplot(3,3,3);
+image(UT2mat(X_avg(:,3), 1),'CDataMapping','scaled')
+colormap parula; colorbar; caxis([-.5,.5]); axis off;
+title('Subject 3 Raw')
+h = subplot(3,3,4);
+image(UT2mat(X_shrink(:,1), 1),'CDataMapping','scaled')
+colormap parula; colorbar; caxis([-.5,.5]); axis off;
+title('Subject 1 Shrink')
+h = subplot(3,3,5);
+image(UT2mat(X_shrink(:,2), 1),'CDataMapping','scaled')
+colormap parula; colorbar; caxis([-.5,.5]); axis off;
+title('Subject 2 Shrink')
+h = subplot(3,3,6);
+image(UT2mat(X_shrink(:,3), 1),'CDataMapping','scaled')
+colormap parula; colorbar; caxis([-.5,.5]); axis off;
+title('Subject 3 Shrink')
+h = subplot(3,3,7);
+image(UT2mat(X_visit2(:,1), 1),'CDataMapping','scaled')
+colormap parula; colorbar; caxis([-.5,.5]); axis off;
+title('Subject 1 Visit 2')
+h = subplot(3,3,8);
+image(UT2mat(X_visit2(:,2), 1),'CDataMapping','scaled')
+colormap parula; colorbar; caxis([-.5,.5]); axis off;
+title('Subject 2 Visit 2')
+h = subplot(3,3,9);
+image(UT2mat(X_visit2(:,3), 1),'CDataMapping','scaled')
+colormap parula; colorbar; caxis([-.5,.5]); axis off;
+title('Subject 3 Visit 2')
+
+
+
+% COMPUTE VISIT 2 MSE OF RAW AND SHRINKAGE ESTIMATES
+
+MSE_raw = mean((X_avg - X_visit2).^2)
+MSE_shrink = mean((X_shrink - X_visit2).^2)
+
+%Percent change in MSE due to shrinkage (positive = reduction in MSE = improved reliability)
+(MSE_raw - MSE_shrink)./MSE_raw
+mean((MSE_raw - MSE_shrink)./MSE_raw)
+
+sqerr_raw = (X_avg - X_visit2).^2;
+sqerr_shrink = (X_shrink - X_visit2).^2;
+sqerr_change = 100*(sqerr_raw - sqerr_shrink)./sqerr_raw;
+sqerr_change = median(sqerr_change, 2);
+
+figure
+image(UT2mat(sqerr_change, 0),'CDataMapping','scaled')
+colormap parula; colorbar; caxis([-50,50]); axis off;
+title('% Change in Reliability')
 

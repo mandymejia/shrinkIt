@@ -1,4 +1,4 @@
-function [X_shrink lambda] = shrinkIt(X1_grp, X2_grp, Xodd_grp, Xeven_grp)
+function [X_shrink lambda varU varW varX] = shrinkIt(X1_grp, X2_grp, Xodd_grp, Xeven_grp, flag)
 %
 % This function performs shrinkage towards the group mean of subject-level 
 % observations of any summary statistic computed from time series data.
@@ -46,17 +46,25 @@ function [X_shrink lambda] = shrinkIt(X1_grp, X2_grp, Xodd_grp, Xeven_grp)
 %       estimates for each subject computed using the even blocks of the 
 %       time series for each subject (see split_ts.m and Example.m)
 %
+%	flag - If 1, sampling variance will be computed separately for
+%		each statistic.  For Fisher-tranformed correlations, the theoretical
+%		sampling variance is just a function of (effective) sample size, so
+%		the estimates of sampling variance can be averaged to improve estimation.
+%
 %
 %Outputs:
 %   X_shrink - array of dimensions (p1, p2, ..., pk, n) containing the
 %              shrinkage estimates of each parameter for each subject
 %   lambda - array of dimensions (p1, p2, ..., pk) containing the degree
 %            of shrinkage for each estimated parameter
+%	varU - within-subject sampling variance estimate(s) (single avg value if flag ~= 1)
+%	varW - within-subject intrasession signal variance estimates
+%	varX - between-subject signal variance estimates
 
 %% Perform Checks
 
-if(nargin ~= 4)
-    error('Must specify four inputs')
+if(nargin < 4)
+    error('Must specify at least four inputs')
 end
 
 if isempty(X1_grp) || isempty(X2_grp) || isempty(Xodd_grp) || isempty(Xeven_grp)
@@ -78,6 +86,15 @@ end
 
 %% SET-UP
 
+% whether to average sampling variance estimate across statistics
+avg = 1;
+if(nargin ==5)
+	if(flag==1) 
+		avg = 0;
+	end
+end
+
+
 %compute array of estimates for each subject
 X_grp = (X1_grp + X2_grp)/2; %subject-level estimates
 
@@ -90,13 +107,14 @@ n = size(X_grp,nd);
 %% COMPUTE SAMPLING VARIANCE USING Xodd and Xeven
 
 D = Xodd_grp - Xeven_grp; %compute even-odd differences
-varU = (1/4)*var(D, 0, nd); %within-subject noise variance
+varU = (1/4)*var(D, 0, nd); %sampling (noise) variance
+if(avg==1) varU = mean(varU(:)); end %average over all connections
 
-%% COMPUTE PSUEDO-SCAN-RESCAN VARIANCE USING X1 and X2
+%% COMPUTE INTRASESSION VARIANCE USING X1 and X2
 
-D = X2_grp - X1_grp; %compute psuedo scan-rescan differences
-varSR = var(D, 0, nd); %consists of within-subject signal and noise variance
-varW = (1/2)*(varSR - 4*varU); %within-subject signal variance
+D = X2_grp - X1_grp; %compute intrasession differences
+varSR = var(D, 0, nd); %consists of within-subject intrasession(signal) and sampling (noise) variance
+varW = (1/2)*(varSR - 4*varU); %intrasession signal variance
 
 %% COMPUTE TOTAL WITHIN-SUBJECT VARIANCE
 
@@ -106,6 +124,8 @@ var_within(var_within < 0) = 0;
 %% COMPUTE TOTAL VARIANCE
 
 varTOT = var(X_grp, 0, nd);
+varX = varTOT - var_within; %between-subject variance
+varX(varX < 0) = 0;
 
 %% COMPUTE LAMBDA (DEGREE OF SHRINKAGE)
 
