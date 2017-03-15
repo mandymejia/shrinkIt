@@ -82,16 +82,13 @@ end
 
 if size(X1_grp, ndims(X1_grp)) == 1
     if(max(dims)==1)
-        error('last dimension of inputs must equal number of subjects > 1')
+    error('last dimension of inputs must equal number of subjects > 1')
     else
-        %check that have the correct number of subjects
-        qStr = sprintf('Is %s the number of subjects? Y/N [Y]:', num2str(max(dims)));
-        userCheck = input(qStr);
-        if(isempty(userCheck))
-            %largest dimension indexes subjects
-            [~, nd] = max(dims);
+        userCheck = input('Is %d the number of subjects? Enter 1 for yes and 0 for no', num2str(max(dims)));
+        if(~userCheck)
+          error('last dimension of inputs must equal number of subjects > 1')
         else
-            error('last dimension of inputs must equal number of subjects > 1')
+            [~, nd] = max(dims);
         end %userCheck
     end %max(dims)==1
 else
