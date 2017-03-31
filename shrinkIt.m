@@ -121,13 +121,13 @@ n = size(X_grp,nd);
 
 D = Xodd_grp - Xeven_grp; %compute even-odd differences
 varU = (1/4)*var(D, 0, nd); %sampling (noise) variance
-if(avg==1) varU = mean(varU(:)); end %average over all connections
+if(avg==1), varU = mean(varU(:)); end %average over all connections
 
 %% COMPUTE INTRASESSION VARIANCE USING X1 and X2
 
 D = X2_grp - X1_grp; %compute intrasession differences
 varSR = var(D, 0, nd); %consists of within-subject intrasession(signal) and sampling (noise) variance
-varW = (1/2)*(varSR - 4*varU); %intrasession signal variance
+varW = (1/4)*(varSR - 4*varU); %intrasession signal variance
 
 %% COMPUTE TOTAL WITHIN-SUBJECT VARIANCE
 

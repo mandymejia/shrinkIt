@@ -82,13 +82,16 @@ end
 
 if size(X1_grp, ndims(X1_grp)) == 1
     if(max(dims)==1)
-    error('last dimension of inputs must equal number of subjects > 1')
+        error('last dimension of inputs must equal number of subjects > 1')
     else
-        userCheck = input('Is %d the number of subjects? Enter 1 for yes and 0 for no', num2str(max(dims)));
-        if(~userCheck)
-          error('last dimension of inputs must equal number of subjects > 1')
-        else
+        %check that have the correct number of subjects
+        qStr = sprintf('Is %s the number of subjects? Y/N [Y]:', num2str(max(dims)));
+        userCheck = input(qStr);
+        if(isempty(userCheck))
+            %largest dimension indexes subjects
             [~, nd] = max(dims);
+        else
+            error('last dimension of inputs must equal number of subjects > 1')
         end %userCheck
     end %max(dims)==1
 else
@@ -118,13 +121,13 @@ n = size(X_grp,nd);
 
 D = Xodd_grp - Xeven_grp; %compute even-odd differences
 varU = (1/4)*var(D, 0, nd); %sampling (noise) variance
-if(avg==1) varU = mean(varU(:)); end %average over all connections
+if(avg==1), varU = mean(varU(:)); end %average over all connections
 
 %% COMPUTE INTRASESSION VARIANCE USING X1 and X2
 
 D = X2_grp - X1_grp; %compute intrasession differences
 varSR = var(D, 0, nd); %consists of within-subject intrasession(signal) and sampling (noise) variance
-varW = (1/2)*(varSR - 4*varU); %intrasession signal variance
+varW = (1/4)*(varSR - 4*varU); %intrasession signal variance
 
 %% COMPUTE TOTAL WITHIN-SUBJECT VARIANCE
 
