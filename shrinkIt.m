@@ -1,4 +1,4 @@
-function [X_shrink lambda varU varW varX] = shrinkIt(X1_grp, X2_grp, Xodd_grp, Xeven_grp, flag)
+function [X_shrink lambda varU varY varX] = shrinkIt(X1_grp, X2_grp, Xodd_grp, Xeven_grp, t, b, d, flag)
 %
 % This function performs shrinkage towards the group mean of subject-level 
 % observations of any summary statistic computed from time series data.
@@ -28,7 +28,7 @@ function [X_shrink lambda varU varW varX] = shrinkIt(X1_grp, X2_grp, Xodd_grp, X
 % of dimension (p1, p2, ..., pk).
 %
 %Usage:
-%   [X_shrink lambda] = shrinkIt(X1, X2, Xeven, Xodd)
+%   [X_shrink lambda varU varY varX] = shrinkIt(X1, X2, Xeven, Xodd)
 %Inputs:
 %   X1 - An array of dimensions (p1, p2, ..., pk, n) containing parameter
 %       estimates for each subject computed using the first half of the 
@@ -46,6 +46,11 @@ function [X_shrink lambda varU varW varX] = shrinkIt(X1_grp, X2_grp, Xodd_grp, X
 %       estimates for each subject computed using the even blocks of the 
 %       time series for each subject (see split_ts.m and Example.m)
 %
+%   t - The length of the original timeseries
+%   b - The block length used in computing Xodd and Xeven
+%   d - The block gap length used in computing Xodd and Xeven
+%   b and d should be the same numbers input to split_ts
+%
 %	flag - If 1, sampling variance will be computed separately for
 %		each statistic.  For Fisher-tranformed correlations, the theoretical
 %		sampling variance is just a function of (effective) sample size, so
@@ -58,13 +63,13 @@ function [X_shrink lambda varU varW varX] = shrinkIt(X1_grp, X2_grp, Xodd_grp, X
 %   lambda - array of dimensions (p1, p2, ..., pk) containing the degree
 %            of shrinkage for each estimated parameter
 %	varU - within-subject sampling variance estimate(s) (single avg value if flag ~= 1)
-%	varW - within-subject intrasession signal variance estimates
+%	varY - within-subject intrasession signal variance estimates
 %	varX - between-subject signal variance estimates
 
 %% Perform Checks
 
-if(nargin < 4)
-    error('Must specify at least four inputs')
+if(nargin < 7)
+    error('Must specify at least seven inputs')
 end
 
 if isempty(X1_grp) || isempty(X2_grp) || isempty(Xodd_grp) || isempty(Xeven_grp)
@@ -99,6 +104,18 @@ else
     nd = ndims(X1_grp);
 end
 
+if ~isnumeric(t) || max(size(t)) > 1 || t - round(t) ~= 0
+    error('time series length t must be an integer')
+end      
+
+if ~isnumeric(b) || max(size(b)) > 1 || b - round(b) ~= 0 || b >= t 
+    error('block length b must be an integer less than t')
+end      
+
+if ~isnumeric(d) || max(size(d)) > 1 || d - round(d) ~= 0 || d >= t 
+    error('block gap length d must be an integer less than t')
+end      
+
 
 %% SET-UP
 
@@ -119,19 +136,30 @@ n = size(X_grp,nd);
 
 %% COMPUTE SAMPLING VARIANCE USING Xodd and Xeven
 
+%compute multiplier for sampling variance
+bd = b+d;
+block1 = [ones(1,b), zeros(1,d), ones(1,b)*2, zeros(1,d)]; %[1,1,1,0,0,0] for b=3
+inds = repmat(block1, [1,ceil(t/bd/2)]);
+inds = inds(1,1:t); %truncate to length of time series
+inds_odd = (inds==1); %indicator vector for odd blocks
+inds_even = (inds==2);  %indicator vector for even blocks
+t_odd = sum(inds_odd);
+t_even = sum(inds_even);
+multiplier = (t/t_odd + t/t_even)^(-1);
+
 D = Xodd_grp - Xeven_grp; %compute even-odd differences
-varU = (1/4)*var(D, 0, nd); %sampling (noise) variance
+varU = multiplier * var(D, 0, nd); %sampling (noise) variance
 if(avg==1), varU = mean(varU(:)); end %average over all connections
 
 %% COMPUTE INTRASESSION VARIANCE USING X1 and X2
 
 D = X2_grp - X1_grp; %compute intrasession differences
 varSR = var(D, 0, nd); %consists of within-subject intrasession(signal) and sampling (noise) variance
-varW = (1/4)*(varSR - 4*varU); %intrasession signal variance
+varY = (1/4)*(varSR - 4*varU); %intrasession signal variance
 
 %% COMPUTE TOTAL WITHIN-SUBJECT VARIANCE
 
-var_within = varW + varU;
+var_within = varY + varU;
 var_within(var_within < 0) = 0;
 
 %% COMPUTE TOTAL VARIANCE

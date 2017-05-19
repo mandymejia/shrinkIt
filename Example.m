@@ -39,9 +39,8 @@ fun_single = 'corrcoef';
 fun_multiple = {'corrcoef', 'mat2UT', 'fish'};
 
 %length of blocks in even/odd splitting
-b = 10; 
-
-
+b = 5;
+d = 1; 
 
 %% LOOP THROUGH SUBJECTS TO CREATE DATA MATRICES
 
@@ -65,15 +64,15 @@ for ii = 1:n
     
     %single function example: 
     %split data and compute VxV correlation matrix for each split
-    [X1i X2i Xoddi Xeveni] = split_ts(Yi1, b, fun_single);
+    [X1i X2i Xoddi Xeveni] = split_ts(Yi1, b, d, fun_single);
     
     %multiple function example:
     %split data and compute upper triangle of VxV correlation matrix for each split
-    [X1i X2i Xoddi Xeveni] = split_ts(Yi1, b, fun_multiple);
+    [X1i X2i Xoddi Xeveni] = split_ts(Yi1, b, d, fun_multiple);
 
 
     % COMPUTE ESTIMATE FROM SECOND VISIT FOR RELIABILITY ANALYSIS
-    X_visit2i = mat2UT(corrcoef(table2array(Yi2)));
+    X_visit2i = fish(mat2UT(corrcoef(table2array(Yi2))));
 
     
     % COMBINE SUBJECTS
@@ -112,95 +111,112 @@ X_visit2 = squeeze(X_visit2);
 %Assume each subject has 10 minutes of scan time total
 %(two 5-minute scans, or one 10-minute scan split in two)
 
-[X_shrink lambda varU varW varX] = shrinkIt(X1, X2, Xodd, Xeven);
-X_shrink = unfish(X_shrink); %inverse Fisher-transform to obtain Pearson correlations
+[X_shrink lambda varU varY varX] = shrinkIt(X1, X2, Xodd, Xeven, 1200, b, d);
 
 
 % VISUALIZE VARIANCE COMPONENTS & DEGREE OF SHRINKAGE
 
-varWTHN = varU + varW;
+X_visit1 = (X1 + X2)./2; %visit 1 raw estimate (fisher-transformed)
+varWTHN_true = (1/2)*var(X_visit2 - X_visit1, 0, 2);
+
+varWTHN = varU + varY;
 varBTWN = varX;
-maxv = max(max(varWTHN(:)),max(varBTWN(:)))*.5;
+maxv = max([max(varWTHN(:)),max(varBTWN(:)),max(varWTHN_true(:))])*.4;
+
 
 figure
-h = subplot(1,3,1);
+h = subplot(2,2,1);
 image(UT2mat(varWTHN, 0),'CDataMapping','scaled')
 colorbar; caxis([0,maxv]); axis off;
-title('Within-Subject Variance')
-h = subplot(1,3,2);
+title('Within-Subject Variance (Estimated)')
+h = subplot(2,2,2);
+image(UT2mat(varWTHN_true, 0),'CDataMapping','scaled')
+colorbar; caxis([0,maxv]); axis off;
+title('Within-Subject Variance (True)')
+h = subplot(2,2,3);
 image(UT2mat(varBTWN, 0),'CDataMapping','scaled')
 colorbar; caxis([0,maxv]); axis off;
 title('Between-Subject Variance')
-h = subplot(1,3,3);
+h = subplot(2,2,4);
 image(UT2mat(lambda, 0),'CDataMapping','scaled')
 colorbar; caxis([0,1]); axis off;
 title('Degree of Shrinkage')
 
 
 
-
 % VISUALIZE RSFC ESTIMATES & RELIABILITY
 
-X1 = unfish(X1);
-X2 = unfish(X2);
-X_avg = (X1 + X2)./2;
+X_shrink = unfish(X_shrink); %inverse Fisher-transform to obtain Pearson correlations
+X_avg = (unfish(X1) + unfish(X2))/2;
+X_visit2 = unfish(X_visit2);
 
 figure
 h = subplot(3,3,1);
 image(UT2mat(X_avg(:,1), 1),'CDataMapping','scaled')
-colormap parula; colorbar; caxis([-.5,.5]); axis off;
-title('Subject 1 Raw')
+colormap parula; caxis([-.5,.5]); axis off; %colorbar; 
+title('Subject 1 Raw Estimate')
 h = subplot(3,3,2);
 image(UT2mat(X_avg(:,2), 1),'CDataMapping','scaled')
-colormap parula; colorbar; caxis([-.5,.5]); axis off;
-title('Subject 2 Raw')
+colormap parula; caxis([-.5,.5]); axis off; %colorbar; 
+title('Subject 2 Raw Estimate')
 h = subplot(3,3,3);
 image(UT2mat(X_avg(:,3), 1),'CDataMapping','scaled')
-colormap parula; colorbar; caxis([-.5,.5]); axis off;
-title('Subject 3 Raw')
+colormap parula; caxis([-.5,.5]); axis off; %colorbar; 
+title('Subject 3 Raw Estimate')
 h = subplot(3,3,4);
 image(UT2mat(X_shrink(:,1), 1),'CDataMapping','scaled')
-colormap parula; colorbar; caxis([-.5,.5]); axis off;
-title('Subject 1 Shrink')
+colormap parula; caxis([-.5,.5]); axis off; %colorbar; 
+title('Subject 1 Shrinkage Estimate')
 h = subplot(3,3,5);
 image(UT2mat(X_shrink(:,2), 1),'CDataMapping','scaled')
-colormap parula; colorbar; caxis([-.5,.5]); axis off;
-title('Subject 2 Shrink')
+colormap parula; caxis([-.5,.5]); axis off; %colorbar; 
+title('Subject 2 Shrinkage Estimate')
 h = subplot(3,3,6);
 image(UT2mat(X_shrink(:,3), 1),'CDataMapping','scaled')
-colormap parula; colorbar; caxis([-.5,.5]); axis off;
-title('Subject 3 Shrink')
+colormap parula; caxis([-.5,.5]); axis off; %colorbar; 
+title('Subject 3 Shrinkage Estimate')
 h = subplot(3,3,7);
 image(UT2mat(X_visit2(:,1), 1),'CDataMapping','scaled')
-colormap parula; colorbar; caxis([-.5,.5]); axis off;
-title('Subject 1 Visit 2')
+colormap parula; caxis([-.5,.5]); axis off; %colorbar; 
+title('Subject 1 Raw Estimate (Visit 2)')
 h = subplot(3,3,8);
 image(UT2mat(X_visit2(:,2), 1),'CDataMapping','scaled')
-colormap parula; colorbar; caxis([-.5,.5]); axis off;
-title('Subject 2 Visit 2')
+colormap parula; caxis([-.5,.5]); axis off; %colorbar; 
+title('Subject 2 Raw Estimate (Visit 2)')
 h = subplot(3,3,9);
 image(UT2mat(X_visit2(:,3), 1),'CDataMapping','scaled')
-colormap parula; colorbar; caxis([-.5,.5]); axis off;
-title('Subject 3 Visit 2')
-
+colormap parula; caxis([-.5,.5]); axis off; %colorbar; 
+title('Subject 3 Raw Estimate (Visit 2)')
 
 
 % COMPUTE VISIT 2 MSE OF RAW AND SHRINKAGE ESTIMATES
 
-MSE_raw = mean((X_avg - X_visit2).^2)
-MSE_shrink = mean((X_shrink - X_visit2).^2)
+%MSE across all connections for each subject
+MSE_raw = mean((X_avg - X_visit2).^2);
+MSE_shrink = mean((X_shrink - X_visit2).^2);
 
 %Percent change in MSE due to shrinkage (positive = reduction in MSE = improved reliability)
-(MSE_raw - MSE_shrink)./MSE_raw
+(MSE_raw - MSE_shrink)./MSE_raw;
 mean((MSE_raw - MSE_shrink)./MSE_raw)
 
 sqerr_raw = (X_avg - X_visit2).^2;
 sqerr_shrink = (X_shrink - X_visit2).^2;
-sqerr_change = 100*(sqerr_raw - sqerr_shrink)./sqerr_raw;
-sqerr_change = median(sqerr_change, 2);
+sqerr_raw = mean(sqerr_raw, 2); %median across subjects
+sqerr_shrink = mean(sqerr_shrink, 2); %median across subjects
+sqerr_change = 100*(sqerr_shrink - sqerr_raw)./sqerr_raw;
 
 figure
+h = subplot(1,3,1);
+image(UT2mat(sqerr_raw, 0),'CDataMapping','scaled')
+caxis([0,.03]); axis off; colorbar; 
+title('Squared Error, Raw Estimates')
+h = subplot(1,3,2);
+image(UT2mat(sqerr_shrink, 0),'CDataMapping','scaled')
+caxis([0,0.03]); axis off; colorbar; 
+title('Squared Error, Shrinkage Estimates')
+h = subplot(1,3,3);
 image(UT2mat(sqerr_change, 0),'CDataMapping','scaled')
-colormap parula; colorbar; caxis([-50,50]); axis off;
-title('% Change in Reliability')
+caxis([-30,30]); axis off; colorbar; 
+title('% Change due to Shrinkage')
+
 
