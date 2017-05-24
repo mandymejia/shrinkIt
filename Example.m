@@ -38,9 +38,6 @@ fun_single = 'corrcoef';
 %multiple function example: compute upper triangle of VxV correlation matrix, then Fisher-transform
 fun_multiple = {'corrcoef', 'mat2UT', 'fish'};
 
-%length of blocks in even/odd splitting
-b = 5;
-d = 1; 
 
 %% LOOP THROUGH SUBJECTS TO CREATE DATA MATRICES
 
@@ -64,11 +61,11 @@ for ii = 1:n
     
     %single function example: 
     %split data and compute VxV correlation matrix for each split
-    [X1i X2i Xoddi Xeveni] = split_ts(Yi1, b, d, fun_single);
+    [X1i X2i] = split_ts(Yi1, fun_single);
     
     %multiple function example:
     %split data and compute upper triangle of VxV correlation matrix for each split
-    [X1i X2i Xoddi Xeveni] = split_ts(Yi1, b, d, fun_multiple);
+    [X1i X2i] = split_ts(Yi1, fun_multiple);
 
 
     % COMPUTE ESTIMATE FROM SECOND VISIT FOR RELIABILITY ANALYSIS
@@ -79,7 +76,7 @@ for ii = 1:n
     
     if(ii==1) 
         %initialize group arrays for each split
-        [X1 X2 Xodd Xeven X_visit2] = deal(zeros([size(X1i), n]));
+        [X1 X2 X_visit2] = deal(zeros([size(X1i), n]));
     end
 
     %add current subject to group arrays:
@@ -89,8 +86,6 @@ for ii = 1:n
 
     X1(index{:}) = X1i;
     X2(index{:}) = X2i;
-    Xodd(index{:}) = Xoddi;
-    Xeven(index{:}) = Xeveni;
     X_visit2(index{:}) = X_visit2i;
     
 end
@@ -98,8 +93,6 @@ end
 %remove superfluous dimensions (of size 1)
 X1 = squeeze(X1);
 X2 = squeeze(X2);
-Xodd = squeeze(Xodd);
-Xeven = squeeze(Xeven);
 X_visit2 = squeeze(X_visit2);
 
 
@@ -111,37 +104,34 @@ X_visit2 = squeeze(X_visit2);
 %Assume each subject has 10 minutes of scan time total
 %(two 5-minute scans, or one 10-minute scan split in two)
 
-[X_shrink lambda varU varY varX] = shrinkIt(X1, X2, Xodd, Xeven, 1200, b, d);
+[X_shrink lambda var_within var_between] = shrinkIt(X1, X2);
 
 
 % VISUALIZE VARIANCE COMPONENTS & DEGREE OF SHRINKAGE
 
 X_visit1 = (X1 + X2)./2; %visit 1 raw estimate (fisher-transformed)
-varWTHN_true = (1/2)*var(X_visit2 - X_visit1, 0, 2);
+var_within_true = (1/2)*var(X_visit2 - X_visit1, 0, 2);
 
-varWTHN = varU + varY;
-varBTWN = varX;
-maxv = max([max(varWTHN(:)),max(varBTWN(:)),max(varWTHN_true(:))])*.4;
+maxv = max([max(var_within(:)),max(var_between(:)),max(var_within_true(:))])*.4;
 
 
 figure
 h = subplot(2,2,1);
-image(UT2mat(varWTHN, 0),'CDataMapping','scaled')
+image(UT2mat(var_within, 0),'CDataMapping','scaled')
 colorbar; caxis([0,maxv]); axis off;
 title('Within-Subject Variance (Estimated)')
 h = subplot(2,2,2);
-image(UT2mat(varWTHN_true, 0),'CDataMapping','scaled')
+image(UT2mat(var_within_true, 0),'CDataMapping','scaled')
 colorbar; caxis([0,maxv]); axis off;
 title('Within-Subject Variance (True)')
 h = subplot(2,2,3);
-image(UT2mat(varBTWN, 0),'CDataMapping','scaled')
+image(UT2mat(var_between, 0),'CDataMapping','scaled')
 colorbar; caxis([0,maxv]); axis off;
 title('Between-Subject Variance')
 h = subplot(2,2,4);
 image(UT2mat(lambda, 0),'CDataMapping','scaled')
 colorbar; caxis([0,1]); axis off;
 title('Degree of Shrinkage')
-
 
 
 % VISUALIZE RSFC ESTIMATES & RELIABILITY
@@ -188,6 +178,11 @@ image(UT2mat(X_visit2(:,3), 1),'CDataMapping','scaled')
 colormap parula; caxis([-.5,.5]); axis off; %colorbar; 
 title('Subject 3 Raw Estimate (Visit 2)')
 
+set(gcf, 'PaperUnits', 'inches');
+set(gcf, 'PaperPosition', [0 0 12 10]);
+saveas(gcf, '~/Shrinkage/plots/Example_RSFC.png')
+
+
 
 % COMPUTE VISIT 2 MSE OF RAW AND SHRINKAGE ESTIMATES
 
@@ -195,15 +190,14 @@ title('Subject 3 Raw Estimate (Visit 2)')
 MSE_raw = mean((X_avg - X_visit2).^2);
 MSE_shrink = mean((X_shrink - X_visit2).^2);
 
-%Percent change in MSE due to shrinkage (positive = reduction in MSE = improved reliability)
-(MSE_raw - MSE_shrink)./MSE_raw;
-mean((MSE_raw - MSE_shrink)./MSE_raw)
+%Percent change in MSE due to shrinkage (negative = reduction in MSE, improved reliability)
+mean((MSE_shrink - MSE_raw)./MSE_raw)
 
 sqerr_raw = (X_avg - X_visit2).^2;
 sqerr_shrink = (X_shrink - X_visit2).^2;
 sqerr_raw = mean(sqerr_raw, 2); %median across subjects
 sqerr_shrink = mean(sqerr_shrink, 2); %median across subjects
-sqerr_change = 100*(sqerr_shrink - sqerr_raw)./sqerr_raw;
+sqerr_change = 100*(sqerr_shrink - sqerr_raw)./sqerr_raw; %negative = reduction in MSE
 
 figure
 h = subplot(1,3,1);
